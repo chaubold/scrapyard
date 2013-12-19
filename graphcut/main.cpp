@@ -41,8 +41,6 @@ public:
     ~ImageGraph();
 
     ImageArray runMinCut(Coordinate source, Coordinate sink);
-    ImageArray runDijkstra(Coordinate source, Coordinate sink);
-    ImageArray runMinMeanCycle(Coordinate source, Coordinate sink);
 
 protected:
     void loadImage(const std::string& filename);
@@ -173,47 +171,6 @@ void ImageGraph::buildGraph()
     std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << std::endl;
 }
 
-ImageGraph::ImageArray ImageGraph::runMinMeanCycle(Coordinate source, Coordinate sink)
-{
-    // find source and sink nodes
-    Graph::Node sourceNode = _graph.nodeFromId(source.second * _imageArray.shape(0) + source.first);
-    Graph::Node sinkNode = _graph.nodeFromId(sink.second * _imageArray.shape(0) + sink.first);
-
-    // perform min-cut / max-flow
-    std::cout << "Running Min Mean Cycle..." << std::endl;
-    lemon::HartmannOrlinMmc< Graph, EdgeMap > minMeanCycle(_graph, _costs);
-    if(!minMeanCycle.run())
-    {
-        std::cout << "Couldn't find min mean cycle" << std::endl;
-        exit(0);
-    }
-
-    // extract nodes on the cut
-    std::cout << "Extracting results..." << std::endl;
-    std::cout << "Cycle Size: " << minMeanCycle.cycleSize() << std::endl;
-    std::cout << "Cycle Mean: " << minMeanCycle.cycleMean() << std::endl;
-
-    // create vigra image of the cut
-    ImageArray cutImage(_imageArray.shape());
-    cutImage = 0;
-
-    unsigned int numNodesOnCycle = 0;
-
-//    for (Graph::NodeIt n(_graph); n != lemon::INVALID; ++n)
-//    {
-//        if(preflow.minCut(n))
-//        {
-//            Coordinate c = _coordinates[n];
-//            cutImage(c.first, c.second) = 255;
-//            numNodesOnCycle++;
-//        }
-//    }
-
-    std::cout << "#### Nodes on the cut: " << numNodesOnCycle << " (" << 100.0f*(float)numNodesOnCycle / (_imageArray.shape(0) * _imageArray.shape(1)) << "%)" << std::endl;
-
-    return cutImage;
-}
-
 ImageGraph::ImageArray ImageGraph::runMinCut(Coordinate source, Coordinate sink)
 {
     // find source and sink nodes
@@ -252,61 +209,6 @@ ImageGraph::ImageArray ImageGraph::runMinCut(Coordinate source, Coordinate sink)
     return cutImage;
 }
 
-ImageGraph::ImageArray ImageGraph::runDijkstra(Coordinate source, Coordinate sink)
-{
-    // find source and sink nodes
-    Graph::Node sourceNode = _graph.nodeFromId(source.second * _imageArray.shape(0) + source.first);
-    Graph::Node sinkNode = _graph.nodeFromId(sink.second * _imageArray.shape(0) + sink.first);
-
-    std::cout << "Running Dijkstra" << std::endl;
-    lemon::Dijkstra< Graph, EdgeMap > shortestPath(_graph, _costs);
-    lemon::Dijkstra< Graph, EdgeMap >::DistMap distances(_graph);
-    shortestPath.distMap(distances);
-    shortestPath.init();
-//    shortestPath.addSource(sourceNode);
-//    shortestPath.start();
-    shortestPath.run(Graph::NodeIt(_graph));
-
-//    if(!shortestPath.run(sourceNode, sinkNode))
-//    {
-//        std::cout << "Cannot reach target from source" << std::endl;
-//        exit(0);
-//    }
-
-//    lemon::Dijkstra< Graph, EdgeMap >::Path path = shortestPath.path(sinkNode);
-//    std::cout << "Length of shortest path: " << path.length() << std::endl;
-
-    // extract nodes on the cut
-    std::cout << "Extracting results..." << std::endl;
-
-    // create vigra image of the cut
-    ImageArray cutImage(_imageArray.shape());
-    cutImage = 0;
-
-    unsigned int minDistance = 0xFFFFFFFF;
-    unsigned int maxDistance = 0;
-    unsigned int numProcessed = 0;
-
-    for (Graph::NodeIt n(_graph); n != lemon::INVALID; ++n)
-    {
-        if(shortestPath.processed(n))
-        {
-            Coordinate c = _coordinates[n];
-            cutImage(c.first, c.second) = shortestPath.dist(n) / 1000;
-
-            minDistance = std::min(minDistance, (unsigned int)shortestPath.dist(n));
-            maxDistance = std::max(maxDistance, (unsigned int)shortestPath.dist(n));
-            numProcessed++;
-        }
-    }
-
-    std::cout << "Min Distance = " << minDistance << std::endl;
-    std::cout << "Max Distance = " << maxDistance << std::endl;
-    std::cout << "Number of nodes processed: " << numProcessed << std::endl;
-
-    return cutImage;
-}
-
 
 int main(int argc, char *argv[])
 {
@@ -322,8 +224,6 @@ int main(int argc, char *argv[])
 
     ImageGraph imageGraph(argv[1]);
     ImageGraph::ImageArray result = imageGraph.runMinCut(std::make_pair(30,30), std::make_pair(130, 100));
-    //ImageGraph::ImageArray result = imageGraph.runDijkstra(std::make_pair(30,30), std::make_pair(130, 100));
-    //ImageGraph::ImageArray result = imageGraph.runMinMeanCycle(std::make_pair(30,30), std::make_pair(130, 100));
 
     std::cout << "Saving result to image: " << argv[1] << std::endl;
     vigra::exportImage(result, argv[2]);
