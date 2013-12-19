@@ -26,11 +26,6 @@ typedef lemon::ListGraph::EdgeMap<int> EdgeMap;
 typedef lemon::ListGraph::Edge Edge;
 #define ADD_EDGE(x,y) _graph.addEdge((x), (y))
 
-//typedef lemon::ListDigraph Graph;
-//typedef lemon::ListDigraph::ArcMap<int> EdgeMap;
-//typedef lemon::ListDigraph::Arc Edge;
-//#define ADD_EDGE(x,y) _graph.addArc((x), (y))
-
 class ImageGraph {
 public:
     typedef vigra::MultiArray<2, vigra::UInt8> ImageArray;
@@ -40,7 +35,7 @@ public:
     ImageGraph(const std::string& filename);
     ~ImageGraph();
 
-    ImageArray runMinCut(Coordinate source, Coordinate sink);
+    ImageArray runMinCut();
 
 protected:
     void loadImage(const std::string& filename);
@@ -113,7 +108,6 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     int gradientMagnitude = _imageArray(x0, y0) - _imageArray(x1, y1);
     gradientMagnitude *= gradientMagnitude;
 
-    //std::cout << "Setting edge weight: " << gradientMagnitude << std::endl;
     _costs[e] = 65025 - gradientMagnitude;
 }
 
@@ -135,7 +129,6 @@ void ImageGraph::buildGraph()
         for(unsigned int x = 0; x < width; x++)
         {
             _coordinates[nodes[y * width + x]] = std::make_pair(x, y);
-            //std::cout << "Node (" << x << ", " << y << "): ID=" << _graph.id(nodes[y * width + x]) << std::endl;
         }
     }
 
@@ -184,24 +177,16 @@ void ImageGraph::buildGraph()
     std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << std::endl;
 }
 
-ImageGraph::ImageArray ImageGraph::runMinCut(Coordinate source, Coordinate sink)
+ImageGraph::ImageArray ImageGraph::runMinCut()
 {
-    // find source and sink nodes
-//    Graph::Node sourceNode = _graph.nodeFromId(source.second * _imageArray.shape(0) + source.first);
-//    Graph::Node sinkNode = _graph.nodeFromId(sink.second * _imageArray.shape(0) + sink.first);
-    Graph::Node sourceNode = _sourceNode;
-    Graph::Node sinkNode = _sinkNode;
-
     // perform min-cut / max-flow
     std::cout << "Running Min-Cut..." << std::endl;
-    lemon::Preflow< Graph, EdgeMap > preflow(_graph, _costs, sourceNode, sinkNode);
+    lemon::Preflow< Graph, EdgeMap > preflow(_graph, _costs, _sourceNode, _sinkNode);
     preflow.init();
-    //preflow.runMinCut();
-    preflow.run();
+    preflow.runMinCut();
 
     // extract nodes on the cut
     std::cout << "Extracting results..." << std::endl;
-    std::cout << "Maximum Flow: " << preflow.flowValue() << std::endl;
 
     // create vigra image of the cut
     ImageArray cutImage(_imageArray.shape());
@@ -238,9 +223,9 @@ int main(int argc, char *argv[])
     }
 
     ImageGraph imageGraph(argv[1]);
-    ImageGraph::ImageArray result = imageGraph.runMinCut(std::make_pair(30,30), std::make_pair(130, 100));
+    ImageGraph::ImageArray result = imageGraph.runMinCut();
 
-    std::cout << "Saving result to image: " << argv[1] << std::endl;
+    std::cout << "Saving result to image: " << argv[2] << std::endl;
     vigra::exportImage(result, argv[2]);
 
     return 0;
