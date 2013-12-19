@@ -10,5 +10,5 @@ SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=c++11)
 INCLUDE_DIRECTORIES(${BUILDEM_DIR}/include)
 LINK_DIRECTORIES(${BUILDEM_DIR}/lib)
 
-ADD_EXECUTABLE(graphcut main.cpp)
+ADD_EXECUTABLE(graphcut main.cpp ImageGraph.cpp ImageGraph.h)
 TARGET_LINK_LIBRARIES(graphcut emon vigraimpex)

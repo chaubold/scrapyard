@@ -5,210 +5,7 @@
  * (c) by Carsten Haubold, HCI, Dec 2013
  */
 
-#include <iostream>
-#include <vector>
-#include <tuple>
-#include <algorithm>
-
-// vigra includes
-#include <vigra/impex.hxx>
-#include <vigra/multi_array.hxx>
-#include <vigra/imageinfo.hxx>
-
-// lemon includes
-#include <lemon/list_graph.h>
-#include <lemon/preflow.h>
-#include <lemon/dijkstra.h>
-#include <lemon/hartmann_orlin_mmc.h>
-
-typedef lemon::ListGraph Graph;
-typedef lemon::ListGraph::EdgeMap<int> EdgeMap;
-typedef lemon::ListGraph::Edge Edge;
-#define ADD_EDGE(x,y) _graph.addEdge((x), (y))
-
-class ImageGraph {
-public:
-    typedef vigra::MultiArray<2, vigra::UInt8> ImageArray;
-    typedef std::pair<unsigned int, unsigned int> Coordinate;
-
-public:
-    ImageGraph(const std::string& filename);
-    ~ImageGraph();
-
-    ImageArray runMinCut();
-
-protected:
-    void loadImage(const std::string& filename);
-    void buildGraph();
-    inline void createEdgeToNodeWithIndex(unsigned int x0,
-                                          unsigned int y0,
-                                          unsigned int x1,
-                                          unsigned int y1,
-                                          unsigned int width,
-                                          Graph::Node& a,
-                                          std::vector<Graph::Node>& nodes);
-
-private:
-    ImageArray _imageArray;
-
-    Graph _graph;
-    EdgeMap _costs;
-    Graph::NodeMap<Coordinate> _coordinates;
-    Graph::Node _sourceNode;
-    Graph::Node _sinkNode;
-};
-
-ImageGraph::ImageGraph(const std::string &filename):
-    _imageArray(),
-    _graph(),
-    _costs(_graph),
-    _coordinates(_graph)
-{
-    loadImage(filename);
-    buildGraph();
-}
-
-ImageGraph::~ImageGraph() {}
-
-void ImageGraph::loadImage(const std::string& filename)
-{
-    // load test image:
-    vigra::ImageImportInfo imageInfo(filename.c_str());
-
-    if(imageInfo.isGrayscale())
-    {
-        // instantiate array for image data
-        vigra::MultiArray<2, uint8_t> imageArray(imageInfo.shape());
-        // copy image data from file into array
-        vigra::importImage(imageInfo, imageArray);
-
-        _imageArray = imageArray;
-    }
-    else
-    {
-         std::cerr << "Color conversion: Not yet implemented!" << std::endl;
-         exit(-1);
-    }
-
-    std::cout << "Found Image: (" << imageInfo.width() << "x" << imageInfo.height() << ")" << std::endl;
-}
-
-void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
-                                           unsigned int y0,
-                                           unsigned int x1,
-                                           unsigned int y1,
-                                           unsigned int width,
-                                           Graph::Node& a,
-                                           std::vector<Graph::Node>& nodes)
-{
-    Graph::Node& b = nodes[y0 * width + x0];
-    Edge e = ADD_EDGE(a, b);
-
-    // compute gradient magnitude
-    int gradientMagnitude = _imageArray(x0, y0) - _imageArray(x1, y1);
-    gradientMagnitude *= gradientMagnitude;
-
-    _costs[e] = 65025 - gradientMagnitude;
-}
-
-void ImageGraph::buildGraph()
-{
-    unsigned int width = _imageArray.shape(0);
-    unsigned int height = _imageArray.shape(1);
-
-
-    // create nodes
-    std::cout << "Generating graph nodes..." << std::endl;
-    std::vector<Graph::Node> nodes(width*height);
-    std::generate(nodes.begin(), nodes.end(), [&]() { return _graph.addNode(); });
-
-    // fill the coordinate map
-    std::cout << "Filling coordinate map..." << std::endl;
-    for(unsigned int y = 0; y < height; y++)
-    {
-        for(unsigned int x = 0; x < width; x++)
-        {
-            _coordinates[nodes[y * width + x]] = std::make_pair(x, y);
-        }
-    }
-
-    // insert sink and source
-    _sinkNode = _graph.addNode();
-    _sourceNode = _graph.addNode();
-
-    // add edges and their weights
-    std::cout << "Adding Edges and their weights..." << std::endl;
-    for(unsigned int y = 0; y < height; y++)
-    {
-        for(unsigned int x = 0; x < width; x++)
-        {
-            Graph::Node& a = nodes[y * width + x];
-
-            // for all but the last row insert edge to the next node in y
-            if(y < height - 1)
-            {
-                createEdgeToNodeWithIndex(x, y, x, y+1, width, a, nodes);
-            }
-
-            // for all but the last column insert edge to the next node in x
-            if(x < width- 1)
-            {
-                createEdgeToNodeWithIndex(x, y, x+1, y, width, a, nodes);
-            }
-
-            // add edges to source and sink, weighted by the pixel color
-            Edge eSink = ADD_EDGE(a, _sinkNode);
-            Edge eSource = ADD_EDGE(a, _sourceNode);
-            vigra::UInt8 pixelValue = _imageArray(x, y);
-            _costs[eSink] = pixelValue * pixelValue;
-            _costs[eSource] = ((int)255 - pixelValue) * ((int)255 - pixelValue);
-        }
-    }
-
-    // Some DEBUG information
-    int minCost = 10000000;
-    int maxCost = 0;
-    for(Graph::EdgeIt e(_graph); e != lemon::INVALID; ++e)
-    {
-        minCost = std::min(minCost, _costs[e]);
-        maxCost = std::max(maxCost, _costs[e]);
-    }
-
-    std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << std::endl;
-}
-
-ImageGraph::ImageArray ImageGraph::runMinCut()
-{
-    // perform min-cut / max-flow
-    std::cout << "Running Min-Cut..." << std::endl;
-    lemon::Preflow< Graph, EdgeMap > preflow(_graph, _costs, _sourceNode, _sinkNode);
-    preflow.init();
-    preflow.runMinCut();
-
-    // extract nodes on the cut
-    std::cout << "Extracting results..." << std::endl;
-
-    // create vigra image of the cut
-    ImageArray cutImage(_imageArray.shape());
-    cutImage = 0;
-
-    unsigned int numNodesOnCut = 0;
-
-    for (Graph::NodeIt n(_graph); n != lemon::INVALID; ++n)
-    {
-        if(preflow.minCut(n))
-        {
-            Coordinate c = _coordinates[n];
-            cutImage(c.first, c.second) = 255;
-            numNodesOnCut++;
-        }
-    }
-
-    std::cout << "#### Nodes on the cut: " << numNodesOnCut << " (" << 100.0f*(float)numNodesOnCut / (_imageArray.shape(0) * _imageArray.shape(1)) << "%)" << std::endl;
-
-    return cutImage;
-}
-
+#include "ImageGraph.h"
 
 int main(int argc, char *argv[])
 {
@@ -216,17 +13,17 @@ int main(int argc, char *argv[])
     std::cout << "\tPerforms a graph cut on a grayscale image and writes the resulting cut to an image\n" << std::endl;
 
     // check for command line parameters:
-    if(argc != 3)
+    if(argc != 4)
     {
-        std::cout << "Usage: " << argv[0] << " inputImageFilename outputImageFilename" << std::endl;
+        std::cout << "Usage: " << argv[0] << " inputImageFilename pixelMaskFilename outputImageFilename" << std::endl;
         return 0;
     }
 
     ImageGraph imageGraph(argv[1]);
     ImageGraph::ImageArray result = imageGraph.runMinCut();
 
-    std::cout << "Saving result to image: " << argv[2] << std::endl;
-    vigra::exportImage(result, argv[2]);
+    std::cout << "Saving result to image: " << argv[3] << std::endl;
+    vigra::exportImage(result, argv[3]);
 
     return 0;
 }
