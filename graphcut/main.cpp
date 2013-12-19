@@ -59,6 +59,8 @@ private:
     Graph _graph;
     EdgeMap _costs;
     Graph::NodeMap<Coordinate> _coordinates;
+    Graph::Node _sourceNode;
+    Graph::Node _sinkNode;
 };
 
 ImageGraph::ImageGraph(const std::string &filename):
@@ -112,7 +114,7 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     gradientMagnitude *= gradientMagnitude;
 
     //std::cout << "Setting edge weight: " << gradientMagnitude << std::endl;
-    _costs[e] = 10000 - gradientMagnitude;
+    _costs[e] = 65025 - gradientMagnitude;
 }
 
 void ImageGraph::buildGraph()
@@ -137,6 +139,10 @@ void ImageGraph::buildGraph()
         }
     }
 
+    // insert sink and source
+    _sinkNode = _graph.addNode();
+    _sourceNode = _graph.addNode();
+
     // add edges and their weights
     std::cout << "Adding Edges and their weights..." << std::endl;
     for(unsigned int y = 0; y < height; y++)
@@ -156,6 +162,13 @@ void ImageGraph::buildGraph()
             {
                 createEdgeToNodeWithIndex(x, y, x+1, y, width, a, nodes);
             }
+
+            // add edges to source and sink, weighted by the pixel color
+            Edge eSink = ADD_EDGE(a, _sinkNode);
+            Edge eSource = ADD_EDGE(a, _sourceNode);
+            vigra::UInt8 pixelValue = _imageArray(x, y);
+            _costs[eSink] = pixelValue * pixelValue;
+            _costs[eSource] = ((int)255 - pixelValue) * ((int)255 - pixelValue);
         }
     }
 
@@ -174,8 +187,10 @@ void ImageGraph::buildGraph()
 ImageGraph::ImageArray ImageGraph::runMinCut(Coordinate source, Coordinate sink)
 {
     // find source and sink nodes
-    Graph::Node sourceNode = _graph.nodeFromId(source.second * _imageArray.shape(0) + source.first);
-    Graph::Node sinkNode = _graph.nodeFromId(sink.second * _imageArray.shape(0) + sink.first);
+//    Graph::Node sourceNode = _graph.nodeFromId(source.second * _imageArray.shape(0) + source.first);
+//    Graph::Node sinkNode = _graph.nodeFromId(sink.second * _imageArray.shape(0) + sink.first);
+    Graph::Node sourceNode = _sourceNode;
+    Graph::Node sinkNode = _sinkNode;
 
     // perform min-cut / max-flow
     std::cout << "Running Min-Cut..." << std::endl;
