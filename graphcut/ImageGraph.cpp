@@ -1,12 +1,15 @@
 #include "ImageGraph.h"
 
-ImageGraph::ImageGraph(const std::string &filename):
+#define MAX_COST 65025
+
+ImageGraph::ImageGraph(const std::string &imageFilename, const std::string &maskFilename):
     _imageArray(),
     _graph(),
     _costs(_graph),
     _coordinates(_graph)
 {
-    loadImage(filename);
+    loadImage(imageFilename);
+    _pixelMask = PixelMask(maskFilename, &_imageArray);
     buildGraph();
 }
 
@@ -51,6 +54,30 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     gradientMagnitude *= gradientMagnitude;
 
     _costs[e] = 65025 - gradientMagnitude;
+}
+
+void ImageGraph::insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
+{
+    Edge e = ADD_EDGE(a, _sourceNode);
+
+    if(_pixelMask.pixelIsForeground(x, y))
+        _costs[e] = MAX_COST;
+    else if(_pixelMask.pixelIsBackground(x, y))
+        _costs[e] = 0;
+    else
+        _costs[e] = _pixelMask.probabilityOfBeingForeground(pixelValue);
+}
+
+void ImageGraph::insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
+{
+    Edge e= ADD_EDGE(a, _sinkNode);
+
+    if(_pixelMask.pixelIsBackground(x, y))
+        _costs[e] = MAX_COST;
+    else if(_pixelMask.pixelIsForeground(x, y))
+        _costs[e] = 0;
+    else
+        _costs[e] = _pixelMask.probabilityOfBeingBackground(pixelValue);
 }
 
 void ImageGraph::buildGraph()
@@ -99,11 +126,9 @@ void ImageGraph::buildGraph()
             }
 
             // add edges to source and sink, weighted by the pixel color
-            Edge eSink = ADD_EDGE(a, _sinkNode);
-            Edge eSource = ADD_EDGE(a, _sourceNode);
             vigra::UInt8 pixelValue = _imageArray(x, y);
-            _costs[eSink] = pixelValue * pixelValue;
-            _costs[eSource] = ((int)255 - pixelValue) * ((int)255 - pixelValue);
+            insertEdgeToSource(x, y, a, pixelValue);
+            insertEdgeToSink(x, y, a, pixelValue);
         }
     }
 

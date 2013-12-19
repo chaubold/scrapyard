@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    ImageGraph imageGraph(argv[1]);
+    ImageGraph imageGraph(argv[1], argv[2]);
     ImageGraph::ImageArray result = imageGraph.runMinCut();
 
     std::cout << "Saving result to image: " << argv[3] << std::endl;

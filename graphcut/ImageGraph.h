@@ -14,8 +14,9 @@
 // lemon includes
 #include <lemon/list_graph.h>
 #include <lemon/preflow.h>
-#include <lemon/dijkstra.h>
-#include <lemon/hartmann_orlin_mmc.h>
+
+// own includes
+#include "PixelMask.h"
 
 typedef lemon::ListGraph Graph;
 typedef lemon::ListGraph::EdgeMap<int> EdgeMap;
@@ -28,12 +29,12 @@ public:
     typedef std::pair<unsigned int, unsigned int> Coordinate;
 
 public:
-    ImageGraph(const std::string& filename);
+    ImageGraph(const std::string& imageFilename, const std::string& maskFilename);
     ~ImageGraph();
 
     ImageArray runMinCut();
 
-protected:
+private:
     void loadImage(const std::string& filename);
     void buildGraph();
     inline void createEdgeToNodeWithIndex(unsigned int x0,
@@ -44,8 +45,12 @@ protected:
                                           Graph::Node& a,
                                           std::vector<Graph::Node>& nodes);
 
+    inline void insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node &a, vigra::UInt8 pixelValue);
+    inline void insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node &a, vigra::UInt8 pixelValue);
+
 private:
     ImageArray _imageArray;
+    PixelMask _pixelMask;
 
     Graph _graph;
     EdgeMap _costs;
