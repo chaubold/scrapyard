@@ -33,24 +33,24 @@ PixelMask::PixelMask(const std::string &filename, vigra::MultiArray<2, uint8_t>*
     std::cout << "Foreground statistics: mean=" << _foregroundMean << " variance=" << _foregroundVariance << std::endl;
 }
 
-const float PixelMask::foregroundRegionPenalty(vigra::UInt8 pixelValue) const
+float PixelMask::foregroundRegionPenalty(vigra::UInt8 pixelValue) const
 {
     float p = (float)pixelValue / 255.0f;
     return powf(_foregroundMean - p, 2.0f) / (2.0f * _foregroundVariance) + logf(sqrtf(2.0f * M_PI * _foregroundVariance));
 }
 
-const float PixelMask::backgroundRegionPenalty(vigra::UInt8 pixelValue) const
+float PixelMask::backgroundRegionPenalty(vigra::UInt8 pixelValue) const
 {
     float p = (float)pixelValue / 255.0f;
     return powf(_backgroundMean - p, 2.0f) / (2.0f * _backgroundVariance) + logf(sqrtf(2.0f * M_PI * _backgroundVariance));
 }
 
-const bool PixelMask::pixelIsForeground(unsigned int x, unsigned int y) const
+bool PixelMask::pixelIsForeground(unsigned int x, unsigned int y) const
 {
     return (FOREGROUND == _pixelMask(x,y));
 }
 
-const bool PixelMask::pixelIsBackground(unsigned int x, unsigned int y) const
+bool PixelMask::pixelIsBackground(unsigned int x, unsigned int y) const
 {
     return (BACKGROUND == _pixelMask(x,y));
 }

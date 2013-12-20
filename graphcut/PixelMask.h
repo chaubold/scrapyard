@@ -17,11 +17,11 @@ public:
     PixelMask() {}
     PixelMask(const std::string& filename, vigra::MultiArray<2, uint8_t> *image);
 
-    const float foregroundRegionPenalty(vigra::UInt8 pixelValue) const;
-    const float backgroundRegionPenalty(vigra::UInt8 pixelValue) const;
+    float foregroundRegionPenalty(vigra::UInt8 pixelValue) const;
+    float backgroundRegionPenalty(vigra::UInt8 pixelValue) const;
 
-    const bool pixelIsForeground(unsigned int x, unsigned int y) const;
-    const bool pixelIsBackground(unsigned int x, unsigned int y) const;
+    bool pixelIsForeground(unsigned int x, unsigned int y) const;
+    bool pixelIsBackground(unsigned int x, unsigned int y) const;
 
 private:
     std::pair<float, float> computeStatisticsOfPixelsWithMask(const vigra::UInt8 mask);
