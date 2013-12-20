@@ -17,8 +17,8 @@ public:
     PixelMask() {}
     PixelMask(const std::string& filename, vigra::MultiArray<2, uint8_t> *image);
 
-    const int probabilityOfBeingForeground(vigra::UInt8 pixelValue) const;
-    const int probabilityOfBeingBackground(vigra::UInt8 pixelValue) const;
+    const float foregroundRegionPenalty(vigra::UInt8 pixelValue) const;
+    const float backgroundRegionPenalty(vigra::UInt8 pixelValue) const;
 
     const bool pixelIsForeground(unsigned int x, unsigned int y) const;
     const bool pixelIsBackground(unsigned int x, unsigned int y) const;

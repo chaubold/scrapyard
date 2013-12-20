@@ -1,12 +1,13 @@
 #include "ImageGraph.h"
-
-#define MAX_COST 65025
+#include <chrono>
 
 ImageGraph::ImageGraph(const std::string &imageFilename, const std::string &maskFilename):
     _imageArray(),
     _graph(),
     _costs(_graph),
-    _coordinates(_graph)
+    _coordinates(_graph),
+    _maxBoundaryPenalty(0.0f),
+    _lambda(1.0f)
 {
     loadImage(imageFilename);
     _pixelMask = PixelMask(maskFilename, &_imageArray);
@@ -17,6 +18,7 @@ ImageGraph::~ImageGraph() {}
 
 void ImageGraph::loadImage(const std::string& filename)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     // load test image:
     vigra::ImageImportInfo imageInfo(filename.c_str());
 
@@ -36,7 +38,10 @@ void ImageGraph::loadImage(const std::string& filename)
     }
 
     std::cout << "Found Image: (" << imageInfo.width() << "x" << imageInfo.height() << ")" << std::endl;
-}
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+    std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
+ }
 
 void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
                                            unsigned int y0,
@@ -50,10 +55,17 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     Edge e = ADD_EDGE(a, b);
 
     // compute gradient magnitude
-    int gradientMagnitude = _imageArray(x0, y0) - _imageArray(x1, y1);
+    float gradientMagnitude = (float)(_imageArray(x0, y0) - _imageArray(x1, y1)) / 255.0f;
     gradientMagnitude *= gradientMagnitude;
 
-    _costs[e] = 65025 - gradientMagnitude;
+    // TODO: where do we get this from?
+    float sigma = 0.2f;
+
+    float distance = sqrtf((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1));
+    float boundaryPenalty = expf(-gradientMagnitude / (2.0f * powf(sigma,2.0f))) / distance;
+    _maxBoundaryPenalty = std::max(_maxBoundaryPenalty, boundaryPenalty);
+
+    _costs[e] = boundaryPenalty;
 }
 
 void ImageGraph::insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
@@ -61,11 +73,11 @@ void ImageGraph::insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node&
     Edge e = ADD_EDGE(a, _sourceNode);
 
     if(_pixelMask.pixelIsForeground(x, y))
-        _costs[e] = MAX_COST;
+        _costs[e] = _maxBoundaryPenalty;
     else if(_pixelMask.pixelIsBackground(x, y))
         _costs[e] = 0;
     else
-        _costs[e] = _pixelMask.probabilityOfBeingForeground(pixelValue);
+        _costs[e] = _lambda * _pixelMask.backgroundRegionPenalty(pixelValue);
 }
 
 void ImageGraph::insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
@@ -73,15 +85,61 @@ void ImageGraph::insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node& a
     Edge e = ADD_EDGE(a, _sinkNode);
 
     if(_pixelMask.pixelIsBackground(x, y))
-        _costs[e] = MAX_COST;
+        _costs[e] = _maxBoundaryPenalty;
     else if(_pixelMask.pixelIsForeground(x, y))
         _costs[e] = 0;
     else
-        _costs[e] = _pixelMask.probabilityOfBeingBackground(pixelValue);
+        _costs[e] = _lambda * _pixelMask.foregroundRegionPenalty(pixelValue);
+}
+
+void ImageGraph::addBoundaryEdgesAndPenalties(
+        unsigned int width,
+        unsigned int height,
+        std::vector<Graph::Node>& nodes)
+{
+    std::cout << "Adding Edges and their weights..." << std::endl;
+    for(unsigned int y = 0; y < height; y++)
+    {
+        for(unsigned int x = 0; x < width; x++)
+        {
+            Graph::Node& a = nodes[y * width + x];
+
+            // for all but the last row insert edge to the next node in y
+            if(y < height - 1)
+            {
+                createEdgeToNodeWithIndex(x, y, x, y+1, width, a, nodes);
+            }
+
+            // for all but the last column insert edge to the next node in x
+            if(x < width- 1)
+            {
+                createEdgeToNodeWithIndex(x, y, x+1, y, width, a, nodes);
+            }
+        }
+    }
+}
+
+void ImageGraph::addRegionEdgesAndPenalties(
+        unsigned int height,
+        unsigned int width,
+        std::vector<Graph::Node>& nodes)
+{
+    for(unsigned int y = 0; y < height; y++)
+    {
+        for(unsigned int x = 0; x < width; x++)
+        {
+            Graph::Node& a = nodes[y * width + x];
+            // add edges to source and sink, weighted by the pixel color
+            vigra::UInt8 pixelValue = _imageArray(x, y);
+            insertEdgeToSource(x, y, a, pixelValue);
+            insertEdgeToSink(x, y, a, pixelValue);
+        }
+    }
 }
 
 void ImageGraph::buildGraph()
 {
+    auto start = std::chrono::high_resolution_clock::now();
     unsigned int width = _imageArray.shape(0);
     unsigned int height = _imageArray.shape(1);
 
@@ -106,35 +164,15 @@ void ImageGraph::buildGraph()
     _sourceNode = _graph.addNode();
 
     // add edges and their weights
-    std::cout << "Adding Edges and their weights..." << std::endl;
-    for(unsigned int y = 0; y < height; y++)
-    {
-        for(unsigned int x = 0; x < width; x++)
-        {
-            Graph::Node& a = nodes[y * width + x];
+    addBoundaryEdgesAndPenalties(width, height, nodes);
 
-            // for all but the last row insert edge to the next node in y
-            if(y < height - 1)
-            {
-                createEdgeToNodeWithIndex(x, y, x, y+1, width, a, nodes);
-            }
+    _maxBoundaryPenalty += 1.0f;
 
-            // for all but the last column insert edge to the next node in x
-            if(x < width- 1)
-            {
-                createEdgeToNodeWithIndex(x, y, x+1, y, width, a, nodes);
-            }
-
-            // add edges to source and sink, weighted by the pixel color
-            vigra::UInt8 pixelValue = _imageArray(x, y);
-            insertEdgeToSource(x, y, a, pixelValue);
-            insertEdgeToSink(x, y, a, pixelValue);
-        }
-    }
+    addRegionEdgesAndPenalties(height, width, nodes);
 
     // Some DEBUG information
-    int minCost = 10000000;
-    int maxCost = 0;
+    float minCost = 10000000;
+    float maxCost = 0;
     for(Graph::EdgeIt e(_graph); e != lemon::INVALID; ++e)
     {
         minCost = std::min(minCost, _costs[e]);
@@ -142,10 +180,15 @@ void ImageGraph::buildGraph()
     }
 
     std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << std::endl;
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+    std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
 }
 
-ImageGraph::ImageArray ImageGraph::runMinCut()
+const ImageGraph::ImageArray ImageGraph::runMinCut()
 {
+    auto start = std::chrono::high_resolution_clock::now();
     // perform min-cut / max-flow
     std::cout << "Running Min-Cut..." << std::endl;
     lemon::Preflow< Graph, EdgeMap > preflow(_graph, _costs, _sourceNode, _sinkNode);
@@ -171,7 +214,12 @@ ImageGraph::ImageArray ImageGraph::runMinCut()
         }
     }
 
-    std::cout << "#### Nodes on the cut: " << numNodesOnCut << " (" << 100.0f*(float)numNodesOnCut / (_imageArray.shape(0) * _imageArray.shape(1)) << "%)" << std::endl;
+    std::cout << "#### Nodes on the cut: " << numNodesOnCut << " (" <<
+                 100.0f*(float)numNodesOnCut / (_imageArray.shape(0) * _imageArray.shape(1)) << "%)" << std::endl;
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+    std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
 
     return cutImage;
 }

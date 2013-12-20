@@ -19,7 +19,7 @@
 #include "PixelMask.h"
 
 typedef lemon::ListGraph Graph;
-typedef lemon::ListGraph::EdgeMap<int> EdgeMap;
+typedef lemon::ListGraph::EdgeMap<float> EdgeMap;
 typedef lemon::ListGraph::Edge Edge;
 #define ADD_EDGE(x,y) _graph.addEdge((x), (y))
 
@@ -32,7 +32,7 @@ public:
     ImageGraph(const std::string& imageFilename, const std::string& maskFilename);
     ~ImageGraph();
 
-    ImageArray runMinCut();
+    const ImageArray runMinCut();
 
 private:
     void loadImage(const std::string& filename);
@@ -48,9 +48,15 @@ private:
     inline void insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node &a, vigra::UInt8 pixelValue);
     inline void insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node &a, vigra::UInt8 pixelValue);
 
+    void addBoundaryEdgesAndPenalties(unsigned int width, unsigned int height, std::vector<Graph::Node> &nodes);
+    void addRegionEdgesAndPenalties(unsigned int height, unsigned int width, std::vector<Graph::Node> &nodes);
+
 private:
     ImageArray _imageArray;
     PixelMask _pixelMask;
+
+    float _maxBoundaryPenalty;
+    float _lambda;
 
     Graph _graph;
     EdgeMap _costs;
