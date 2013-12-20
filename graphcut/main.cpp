@@ -6,9 +6,13 @@
  */
 
 #include "ImageGraph.h"
+#include "MainWindow.h"
+#include <QApplication>
 
 int main(int argc, char *argv[])
 {
+    QApplication app(argc, argv);
+
     std::cout << "GraphCut example by Carsten Haubold" << std::endl;
     std::cout << "\tPerforms a graph cut on a grayscale image and writes the resulting cut to an image\n" << std::endl;
 
@@ -25,5 +29,8 @@ int main(int argc, char *argv[])
     std::cout << "Saving result to image: " << argv[3] << std::endl;
     vigra::exportImage(result, argv[3]);
 
-    return 0;
+    MainWindow w;
+    w.show();
+
+    return app.exec();
 }
