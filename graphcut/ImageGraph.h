@@ -32,11 +32,18 @@ public:
     ImageGraph(const std::string& imageFilename, const std::string& maskFilename);
     ~ImageGraph();
 
-    const ImageArray runMinCut();
+    void buildGraph();
+    ImageArray runMinCut();
+
+    float lambda() const;
+    void setLambda(float lambda);
+
+    float sigma() const;
+    void setSigma(float sigma);
 
 private:
     void loadImage(const std::string& filename);
-    void buildGraph();
+
     inline void createEdgeToNodeWithIndex(unsigned int x0,
                                           unsigned int y0,
                                           unsigned int x1,
@@ -57,6 +64,7 @@ private:
 
     float _maxBoundaryPenalty;
     float _lambda;
+    float _sigma;
 
     Graph _graph;
     EdgeMap _costs;

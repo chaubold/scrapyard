@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+class ImageGraph;
 
 namespace Ui {
 class MainWindow;
@@ -15,8 +16,18 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+    void setImageGraph(ImageGraph *imageGraph);
+
+public slots:
+    void setNewLambdaValue(int value);
+    void setNewSigmaValue(int value);
+
 private:
-    Ui::MainWindow *ui;
+    Ui::MainWindow *_ui;
+    ImageGraph* _imageGraph;
+    QVector<QRgb> _colorTable;
+
+    void processImage();
 };
 
 #endif // MAINWINDOW_H

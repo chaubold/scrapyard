@@ -7,7 +7,8 @@ ImageGraph::ImageGraph(const std::string &imageFilename, const std::string &mask
     _costs(_graph),
     _coordinates(_graph),
     _maxBoundaryPenalty(0.0f),
-    _lambda(1.0f)
+    _lambda(1.0f),
+    _sigma(1.0f)
 {
     loadImage(imageFilename);
     _pixelMask = PixelMask(maskFilename, &_imageArray);
@@ -58,11 +59,8 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     float gradientMagnitude = (float)(_imageArray(x0, y0) - _imageArray(x1, y1)) / 255.0f;
     gradientMagnitude *= gradientMagnitude;
 
-    // TODO: where do we get this from?
-    float sigma = 0.2f;
-
     float distance = sqrtf((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1));
-    float boundaryPenalty = expf(-gradientMagnitude / (2.0f * powf(sigma,2.0f))) / distance;
+    float boundaryPenalty = expf(-gradientMagnitude / (2.0f * powf(_sigma,2.0f))) / distance;
     _maxBoundaryPenalty = std::max(_maxBoundaryPenalty, boundaryPenalty);
 
     _costs[e] = boundaryPenalty;
@@ -136,6 +134,26 @@ void ImageGraph::addRegionEdgesAndPenalties(
         }
     }
 }
+float ImageGraph::sigma() const
+{
+    return _sigma;
+}
+
+void ImageGraph::setSigma(float sigma)
+{
+    _sigma = sigma;
+}
+
+float ImageGraph::lambda() const
+{
+    return _lambda;
+}
+
+void ImageGraph::setLambda(float lambda)
+{
+    _lambda = lambda;
+}
+
 
 void ImageGraph::buildGraph()
 {
@@ -143,9 +161,11 @@ void ImageGraph::buildGraph()
     unsigned int width = _imageArray.shape(0);
     unsigned int height = _imageArray.shape(1);
 
+    _graph.clear();
+    _maxBoundaryPenalty = 0.0f;
 
     // create nodes
-    std::cout << "Generating graph nodes..." << std::endl;
+    std::cout << "Generating graph nodes with lambda=" << _lambda << " and sigma=" << _sigma << "..." << std::endl;
     std::vector<Graph::Node> nodes(width*height);
     std::generate(nodes.begin(), nodes.end(), [&]() { return _graph.addNode(); });
 
@@ -179,14 +199,14 @@ void ImageGraph::buildGraph()
         maxCost = std::max(maxCost, _costs[e]);
     }
 
-    std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << std::endl;
+    std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << "\nmaxBoundaryPenalty: " << _maxBoundaryPenalty << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
     std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
 }
 
-const ImageGraph::ImageArray ImageGraph::runMinCut()
+ImageGraph::ImageArray ImageGraph::runMinCut()
 {
     auto start = std::chrono::high_resolution_clock::now();
     // perform min-cut / max-flow
@@ -220,6 +240,6 @@ const ImageGraph::ImageArray ImageGraph::runMinCut()
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
     std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
-
+    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" << std::endl;
     return cutImage;
 }

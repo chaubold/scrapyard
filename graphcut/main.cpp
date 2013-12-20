@@ -24,13 +24,13 @@ int main(int argc, char *argv[])
     }
 
     ImageGraph imageGraph(argv[1], argv[2]);
-    ImageGraph::ImageArray result = imageGraph.runMinCut();
 
-    std::cout << "Saving result to image: " << argv[3] << std::endl;
-    vigra::exportImage(result, argv[3]);
+//    std::cout << "Saving result to image: " << argv[3] << std::endl;
+//    vigra::exportImage(result, argv[3]);
 
     MainWindow w;
     w.show();
+    w.setImageGraph(&imageGraph);
 
     return app.exec();
 }
