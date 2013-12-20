@@ -108,10 +108,20 @@ void ImageGraph::addBoundaryEdgesAndPenalties(
                 createEdgeToNodeWithIndex(x, y, x, y+1, width, a, nodes);
             }
 
+            if(y < height - 2)
+            {
+                createEdgeToNodeWithIndex(x, y, x, y+2, width, a, nodes);
+            }
+
             // for all but the last column insert edge to the next node in x
-            if(x < width- 1)
+            if(x < width - 1)
             {
                 createEdgeToNodeWithIndex(x, y, x+1, y, width, a, nodes);
+            }
+
+            if(x < width - 2)
+            {
+                createEdgeToNodeWithIndex(x, y, x+2, y, width, a, nodes);
             }
         }
     }
@@ -191,7 +201,7 @@ void ImageGraph::buildGraph()
     addRegionEdgesAndPenalties(height, width, nodes);
 
     // Some DEBUG information
-    float minCost = 10000000;
+    float minCost = MAXFLOAT;
     float maxCost = 0;
     for(Graph::EdgeIt e(_graph); e != lemon::INVALID; ++e)
     {
