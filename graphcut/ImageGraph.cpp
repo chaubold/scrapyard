@@ -70,7 +70,7 @@ void ImageGraph::insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node&
 
 void ImageGraph::insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
 {
-    Edge e= ADD_EDGE(a, _sinkNode);
+    Edge e = ADD_EDGE(a, _sinkNode);
 
     if(_pixelMask.pixelIsBackground(x, y))
         _costs[e] = MAX_COST;
