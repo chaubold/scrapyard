@@ -35,13 +35,13 @@ PixelMask::PixelMask(const std::string &filename, vigra::MultiArray<2, uint8_t>*
 
 float PixelMask::foregroundRegionPenalty(vigra::UInt8 pixelValue) const
 {
-    float p = (float)pixelValue / 255.0f;
+    float p = (float)pixelValue; // / 255.0f;
     return powf(_foregroundMean - p, 2.0f) / (2.0f * _foregroundVariance) + logf(sqrtf(2.0f * M_PI * _foregroundVariance));
 }
 
 float PixelMask::backgroundRegionPenalty(vigra::UInt8 pixelValue) const
 {
-    float p = (float)pixelValue / 255.0f;
+    float p = (float)pixelValue; // / 255.0f;
     return powf(_backgroundMean - p, 2.0f) / (2.0f * _backgroundVariance) + logf(sqrtf(2.0f * M_PI * _backgroundVariance));
 }
 
@@ -66,7 +66,7 @@ std::pair<float, float> PixelMask::computeStatisticsOfPixelsWithMask(const vigra
         {
             if(mask == _pixelMask(x,y))
             {
-                mean += (float)(*_image)(x,y) / 255.0f;
+                mean += (float)(*_image)(x,y); // / 255.0f;
                 numPixels++;
             }
         }
@@ -82,7 +82,8 @@ std::pair<float, float> PixelMask::computeStatisticsOfPixelsWithMask(const vigra
         {
             if(mask == _pixelMask(x,y))
             {
-                variance += powf(mean - (float)(*_image)(x,y) / 255.0f, 2.0f);
+                // variance += powf(mean - (float)(*_image)(x,y) / 255.0f, 2.0f);
+                variance += powf(mean - (float)(*_image)(x,y), 2.0f);
             }
         }
     }

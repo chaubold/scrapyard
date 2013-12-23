@@ -55,7 +55,7 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     Edge e = ADD_EDGE(a, b);
 
     // compute gradient magnitude
-    float gradientMagnitude = (float)(_imageArray(x0, y0) - _imageArray(x1, y1)) / 255.0f;
+    float gradientMagnitude = (float)(_imageArray(x0, y0) - _imageArray(x1, y1)); // / 255.0f;
     gradientMagnitude *= gradientMagnitude;
 
     float distance = sqrtf((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1));
