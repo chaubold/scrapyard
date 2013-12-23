@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    ImageGraphPrimal imageGraph(argv[1], argv[2]);
-    //ImageGraphDual imageGraph(argv[1], argv[2]);
+    //ImageGraphPrimal imageGraph(argv[1], argv[2]);
+    ImageGraphDual imageGraph(argv[1], argv[2]);
 
 
     MainWindow w;

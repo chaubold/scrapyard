@@ -68,7 +68,8 @@ void ImageGraphPrimal::addBoundaryEdgesAndPenalties(
         unsigned int height,
         std::vector<Graph::Node>& nodes)
 {
-    std::cout << "Adding Edges and their weights..." << std::endl;
+    if(_loggingEnabled)
+        std::cout << "Adding Edges and their weights..." << std::endl;
     for(unsigned int y = 0; y < height; y++)
     {
         for(unsigned int x = 0; x < width; x++)

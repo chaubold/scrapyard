@@ -36,10 +36,10 @@ public:
     virtual ImageArray runMinCut() = 0;
 
     float lambda() const;
-    void setLambda(float lambda);
+    virtual void setLambda(float lambda);
 
     float sigma() const;
-    void setSigma(float sigma);
+    virtual void setSigma(float sigma);
 
 private:
     void loadImage(const std::string& filename);
