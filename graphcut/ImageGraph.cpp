@@ -107,20 +107,21 @@ void ImageGraph::addBoundaryEdgesAndPenalties(
                 createEdgeToNodeWithIndex(x, y, x, y+1, width, a, nodes);
             }
 
-            if(y < height - 2)
-            {
-                createEdgeToNodeWithIndex(x, y, x, y+2, width, a, nodes);
-            }
-
             // for all but the last column insert edge to the next node in x
             if(x < width - 1)
             {
                 createEdgeToNodeWithIndex(x, y, x+1, y, width, a, nodes);
             }
 
-            if(x < width - 2)
+            // diagonal connection as well
+            if(x < width - 1 && y < height - 1)
             {
-                createEdgeToNodeWithIndex(x, y, x+2, y, width, a, nodes);
+                createEdgeToNodeWithIndex(x, y, x+1, y+1, width, a, nodes);
+            }
+
+            if(x < width - 1 && y > 1)
+            {
+                createEdgeToNodeWithIndex(x, y, x+1, y-1, width, a, nodes);
             }
         }
     }
@@ -208,7 +209,11 @@ void ImageGraph::buildGraph()
         maxCost = std::max(maxCost, _costs[e]);
     }
 
-    std::cout << "MinCost: " << minCost << "\nmaxCost: " << maxCost << "\nmaxBoundaryPenalty: " << _maxBoundaryPenalty << std::endl;
+    std::cout << "MinCost: " << minCost <<
+                 "\nmaxCost: " << maxCost <<
+                 "\nmaxBoundaryPenalty: " << _maxBoundaryPenalty <<
+                 "\nMaxGraphId: " << _graph.maxNodeId() <<
+                 "\nMaxEdgeId: " << _graph.maxEdgeId() << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
