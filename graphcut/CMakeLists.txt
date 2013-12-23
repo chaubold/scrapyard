@@ -22,5 +22,18 @@ SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -std=c++11)
 INCLUDE_DIRECTORIES(${BUILDEM_DIR}/include)
 LINK_DIRECTORIES(${BUILDEM_DIR}/lib)
 
-ADD_EXECUTABLE(graphcut main.cpp ImageGraph.cpp ImageGraph.h PixelMask.cpp PixelMask.h MainWindow.cpp ${graphcut_HEADERS_MOC} ${graphcut_FORMS})
+ADD_EXECUTABLE(graphcut
+    main.cpp
+    ImageGraph.cpp
+    ImageGraph.h
+    ImageGraphPrimal.cpp
+    ImageGraphPrimal.h
+    ImageGraphDual.cpp
+    ImageGraphDual.h
+    PixelMask.cpp
+    PixelMask.h
+    MainWindow.cpp
+    ${graphcut_HEADERS_MOC}
+    ${graphcut_FORMS})
+
 TARGET_LINK_LIBRARIES(graphcut emon vigraimpex ${QT_LIBRARIES})

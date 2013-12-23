@@ -29,11 +29,11 @@ public:
     typedef std::pair<unsigned int, unsigned int> Coordinate;
 
 public:
-    ImageGraph(const std::string& imageFilename, const std::string& maskFilename);
-    ~ImageGraph();
+    ImageGraph(const std::string &imageFilename, const std::string &maskFilename);
+    virtual ~ImageGraph();
 
-    void buildGraph();
-    ImageArray runMinCut();
+    virtual void buildGraph() = 0;
+    virtual ImageArray runMinCut() = 0;
 
     float lambda() const;
     void setLambda(float lambda);
@@ -44,21 +44,7 @@ public:
 private:
     void loadImage(const std::string& filename);
 
-    inline void createEdgeToNodeWithIndex(unsigned int x0,
-                                          unsigned int y0,
-                                          unsigned int x1,
-                                          unsigned int y1,
-                                          unsigned int width,
-                                          Graph::Node& a,
-                                          std::vector<Graph::Node>& nodes);
-
-    inline void insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node &a, vigra::UInt8 pixelValue);
-    inline void insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node &a, vigra::UInt8 pixelValue);
-
-    void addBoundaryEdgesAndPenalties(unsigned int width, unsigned int height, std::vector<Graph::Node> &nodes);
-    void addRegionEdgesAndPenalties(unsigned int height, unsigned int width, std::vector<Graph::Node> &nodes);
-
-private:
+protected:
     ImageArray _imageArray;
     PixelMask _pixelMask;
 

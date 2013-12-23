@@ -5,7 +5,8 @@
  * (c) by Carsten Haubold, HCI, Dec 2013
  */
 
-#include "ImageGraph.h"
+#include "ImageGraphPrimal.h"
+#include "ImageGraphDual.h"
 #include "MainWindow.h"
 #include <QApplication>
 
@@ -23,7 +24,9 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    ImageGraph imageGraph(argv[1], argv[2]);
+    ImageGraphPrimal imageGraph(argv[1], argv[2]);
+    //ImageGraphDual imageGraph(argv[1], argv[2]);
+
 
     MainWindow w;
     w.show();
