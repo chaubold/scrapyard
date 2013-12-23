@@ -23,7 +23,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setNewLambdaValue(int value)
 {
-    float newValue = (float)value / _ui->lambdaSlider->maximum();
+    float newValue = (float)value; // / _ui->lambdaSlider->maximum();
     _imageGraph->setLambda(newValue);
     _imageGraph->buildGraph();
     processImage();
@@ -31,7 +31,7 @@ void MainWindow::setNewLambdaValue(int value)
 
 void MainWindow::setNewSigmaValue(int value)
 {
-    float newValue = (float)value / _ui->lambdaSlider->maximum();
+    float newValue = (float)value; // / _ui->lambdaSlider->maximum();
     _imageGraph->setSigma(newValue);
     _imageGraph->buildGraph();
     processImage();
@@ -41,7 +41,7 @@ void MainWindow::setImageGraph(ImageGraph *imageGraph)
 {
     _imageGraph = imageGraph;
     _imageGraph->setLambda(_ui->lambdaSlider->value());
-    _imageGraph->setSigma(0.0001f * _ui->sigmaSlider->value());
+    _imageGraph->setSigma(_ui->sigmaSlider->value());
     _imageGraph->buildGraph();
     processImage();
 }
