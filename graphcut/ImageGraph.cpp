@@ -12,7 +12,6 @@ ImageGraph::ImageGraph(const std::string &imageFilename, const std::string &mask
 {
     loadImage(imageFilename);
     _pixelMask = PixelMask(maskFilename, &_imageArray);
-    buildGraph();
 }
 
 ImageGraph::~ImageGraph() {}

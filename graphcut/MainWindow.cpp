@@ -40,6 +40,9 @@ void MainWindow::setNewSigmaValue(int value)
 void MainWindow::setImageGraph(ImageGraph *imageGraph)
 {
     _imageGraph = imageGraph;
+    _imageGraph->setLambda(_ui->lambdaSlider->value());
+    _imageGraph->setSigma(0.0001f * _ui->sigmaSlider->value());
+    _imageGraph->buildGraph();
     processImage();
 }
 
