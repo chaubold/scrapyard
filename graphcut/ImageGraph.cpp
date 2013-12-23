@@ -51,7 +51,7 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
                                            Graph::Node& a,
                                            std::vector<Graph::Node>& nodes)
 {
-    Graph::Node& b = nodes[y0 * width + x0];
+    Graph::Node& b = nodes[y1 * width + x1];
     Edge e = ADD_EDGE(a, b);
 
     // compute gradient magnitude
@@ -59,7 +59,7 @@ void ImageGraph::createEdgeToNodeWithIndex(unsigned int x0,
     gradientMagnitude *= gradientMagnitude;
 
     float distance = sqrtf((x0 - x1) * (x0 - x1) + (y0 - y1) * (y0 - y1));
-    float boundaryPenalty = expf(-gradientMagnitude / (2.0f * powf(_sigma,2.0f))) / distance;
+    float boundaryPenalty = 100.0f * expf(-gradientMagnitude / (2.0f * powf(_sigma,2.0f))) / distance;
     _maxBoundaryPenalty = std::max(_maxBoundaryPenalty, boundaryPenalty);
 
     _costs[e] = boundaryPenalty;

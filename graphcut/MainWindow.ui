@@ -40,7 +40,7 @@
         <item>
          <widget class="QSlider" name="lambdaSlider">
           <property name="maximum">
-           <number>20</number>
+           <number>80</number>
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -56,7 +56,7 @@
         <item>
          <widget class="QSlider" name="sigmaSlider">
           <property name="maximum">
-           <number>5</number>
+           <number>10</number>
           </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
