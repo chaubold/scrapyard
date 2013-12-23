@@ -26,6 +26,7 @@ private:
     ImageGraphPrimal _subgraphN;
 
     unsigned int _splitX;
+    std::vector<float> _lagrangians;
 };
 
 #endif // IMAGEGRAPHDUAL_H

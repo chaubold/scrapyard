@@ -7,7 +7,8 @@ ImageGraphDual::ImageGraphDual(const std::string &imageFilename,
     ImageGraph(imageFilename, maskFilename),
     _subgraphM(imageFilename, maskFilename),
     _subgraphN(imageFilename, maskFilename),
-    _splitX(_imageArray.shape(0)/2)
+    _splitX(_imageArray.shape(0)/2),
+    _lagrangians(_imageArray.shape(1), 0)
 {
     // set up both subgraphs with overlap
     _subgraphM.setLoggingEnabled(false);
@@ -49,15 +50,32 @@ ImageGraph::ImageArray ImageGraphDual::runMinCut()
     fN.waitForFinished();
 
     // check how much the results in the overlap differ
+    auto sum = 0;
+    for(auto i = 0; i < _lagrangians.size(); i++)
+    {
+        bool nodeInSourceSetForM = _subgraphM.isNodeInSourceSubset(_splitX, i);
+        bool nodeInSourceSetForN = _subgraphN.isNodeInSourceSubset(_splitX, i);
+
+        if(nodeInSourceSetForM != nodeInSourceSetForN)
+        {
+            std::cout << "Pixel (" << _splitX << ", " << i << ") disagrees!" << std::endl;
+            sum++;
+        }
+    }
+
+    if(sum > 0)
+        std::cout << "\nThere were " << sum << " disagreeing pixels\n" << std::endl;
 
     // return solution if subproblems agree
     // return mergeSolutions(fM.result(), fN.result());
 
     // update lagrangians
 
+    // loop end
+
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-    std::cout << "Finding MinCut took: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
+    std::cout << "Solving with Dual Decomposition took: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
 
     return mergeSolutions(fM.result(), fN.result());
 }
@@ -81,6 +99,17 @@ ImageGraph::ImageArray ImageGraphDual::mergeSolutions(
         const ImageGraph::ImageArray &solutionN)
 {
     ImageGraph::ImageArray result(solutionM);
+
+    try
+    {
+        // WHY DO YOU NO WORK??
+        result.subarray(vigra::Shape2(_splitX, 0), _imageArray.shape()) =
+                solutionN.subarray(vigra::Shape2(0, 0), vigra::Shape2(_splitX, _imageArray.shape(1)));
+    }
+    catch(std::exception e)
+    {
+        std::cout << "Error when copying: " << e.what() << std::endl;
+    }
 
     return result;
 }
