@@ -2,11 +2,20 @@
 #include <chrono>
 
 ImageGraphPrimal::ImageGraphPrimal(const std::string &imageFilename, const std::string &maskFilename):
-    ImageGraph(imageFilename, maskFilename)
+    ImageGraph(imageFilename, maskFilename),
+    _minX(0),
+    _minY(0),
+    _maxX(_imageArray.shape(0)),
+    _maxY(_imageArray.shape(1)),
+    _preflow(NULL),
+    _loggingEnabled(true)
 {
 }
 
-ImageGraphPrimal::~ImageGraphPrimal() {}
+ImageGraphPrimal::~ImageGraphPrimal()
+{
+    delete _preflow;
+}
 
 void ImageGraphPrimal::createEdgeToNodeWithIndex(unsigned int x0,
                                            unsigned int y0,
@@ -34,9 +43,9 @@ void ImageGraphPrimal::insertEdgeToSource(unsigned int x, unsigned int y, Graph:
 {
     Edge e = ADD_EDGE(a, _sourceNode);
 
-    if(_pixelMask.pixelIsForeground(x, y))
+    if(_pixelMask.pixelIsForeground(_minX + x, _minY + y))
         _costs[e] = _maxBoundaryPenalty;
-    else if(_pixelMask.pixelIsBackground(x, y))
+    else if(_pixelMask.pixelIsBackground(_minX + x, _minY + y))
         _costs[e] = 0;
     else
         _costs[e] = _lambda * _pixelMask.backgroundRegionPenalty(pixelValue);
@@ -46,9 +55,9 @@ void ImageGraphPrimal::insertEdgeToSink(unsigned int x, unsigned int y, Graph::N
 {
     Edge e = ADD_EDGE(a, _sinkNode);
 
-    if(_pixelMask.pixelIsBackground(x, y))
+    if(_pixelMask.pixelIsBackground(_minX + x, _minY + y))
         _costs[e] = _maxBoundaryPenalty;
-    else if(_pixelMask.pixelIsForeground(x, y))
+    else if(_pixelMask.pixelIsForeground(_minX + x, _minY + y))
         _costs[e] = 0;
     else
         _costs[e] = _lambda * _pixelMask.foregroundRegionPenalty(pixelValue);
@@ -103,7 +112,7 @@ void ImageGraphPrimal::addRegionEdgesAndPenalties(
         {
             Graph::Node& a = nodes[y * width + x];
             // add edges to source and sink, weighted by the pixel color
-            vigra::UInt8 pixelValue = _imageArray(x, y);
+            vigra::UInt8 pixelValue = _imageArray(_minX + x, _minY + y);
             insertEdgeToSource(x, y, a, pixelValue);
             insertEdgeToSink(x, y, a, pixelValue);
         }
@@ -117,6 +126,33 @@ float ImageGraphPrimal::sigma() const
 void ImageGraphPrimal::setSigma(float sigma)
 {
     _sigma = sigma;
+}
+
+void ImageGraphPrimal::setRange(unsigned int minX, unsigned int minY, unsigned int maxX, unsigned int maxY)
+{
+    _minX = minX;
+    _minY = minY;
+    _maxX = maxX;
+    _maxY = maxY;
+}
+
+void ImageGraphPrimal::setLoggingEnabled(bool enableLog)
+{
+    _loggingEnabled = enableLog;
+}
+
+bool ImageGraphPrimal::isNodeInSourceSubset(unsigned int globalX, unsigned int globalY)
+{
+    if(!_preflow)
+    {
+        std::cerr << "No MinCut has been computed yet!" << std::endl;
+        return false;
+    }
+
+    // find appropriate node and return its state
+    unsigned int width = _maxX - _minX;
+    Graph::Node& n = _nodes[(globalY - _minY) * width + (globalX - _minX)];
+    return _preflow->minCut(n);
 }
 
 float ImageGraphPrimal::lambda() const
@@ -133,24 +169,27 @@ void ImageGraphPrimal::setLambda(float lambda)
 void ImageGraphPrimal::buildGraph()
 {
     auto start = std::chrono::high_resolution_clock::now();
-    unsigned int width = _imageArray.shape(0);
-    unsigned int height = _imageArray.shape(1);
+    unsigned int width = _maxX - _minX;
+    unsigned int height = _maxY - _minY;
 
     _graph.clear();
     _maxBoundaryPenalty = 0.0f;
 
     // create nodes
-    std::cout << "Generating graph nodes with lambda=" << _lambda << " and sigma=" << _sigma << "..." << std::endl;
-    std::vector<Graph::Node> nodes(width*height);
-    std::generate(nodes.begin(), nodes.end(), [&]() { return _graph.addNode(); });
+    if(_loggingEnabled)
+        std::cout << "Generating graph nodes with lambda=" << _lambda << " and sigma=" << _sigma << "..." << std::endl;
+
+    _nodes = std::vector<Graph::Node>(width*height);
+    std::generate(_nodes.begin(), _nodes.end(), [&]() { return _graph.addNode(); });
 
     // fill the coordinate map
-    std::cout << "Filling coordinate map..." << std::endl;
+    if(_loggingEnabled)
+        std::cout << "Filling coordinate map..." << std::endl;
     for(unsigned int y = 0; y < height; y++)
     {
         for(unsigned int x = 0; x < width; x++)
         {
-            _coordinates[nodes[y * width + x]] = std::make_pair(x, y);
+            _coordinates[_nodes[y * width + x]] = std::make_pair(_minX + x, _minY + y);
         }
     }
 
@@ -159,11 +198,11 @@ void ImageGraphPrimal::buildGraph()
     _sourceNode = _graph.addNode();
 
     // add edges and their weights
-    addBoundaryEdgesAndPenalties(width, height, nodes);
+    addBoundaryEdgesAndPenalties(width, height, _nodes);
 
     _maxBoundaryPenalty += 1.0f;
 
-    addRegionEdgesAndPenalties(width, height, nodes);
+    addRegionEdgesAndPenalties(width, height, _nodes);
 
     // Some DEBUG information
     float minCost = MAXFLOAT;
@@ -174,28 +213,37 @@ void ImageGraphPrimal::buildGraph()
         maxCost = std::max(maxCost, _costs[e]);
     }
 
-    std::cout << "MinCost: " << minCost <<
-                 "\nmaxCost: " << maxCost <<
-                 "\nmaxBoundaryPenalty: " << _maxBoundaryPenalty <<
-                 "\nMaxGraphId: " << _graph.maxNodeId() <<
-                 "\nMaxEdgeId: " << _graph.maxEdgeId() << std::endl;
+    if(_loggingEnabled)
+    {
+        std::cout << "MinCost: " << minCost <<
+                     "\nmaxCost: " << maxCost <<
+                     "\nmaxBoundaryPenalty: " << _maxBoundaryPenalty <<
+                     "\nMaxGraphId: " << _graph.maxNodeId() <<
+                     "\nMaxEdgeId: " << _graph.maxEdgeId() << std::endl;
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-    std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+        std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
+    }
 }
 
 ImageGraph::ImageArray ImageGraphPrimal::runMinCut()
 {
-    auto start = std::chrono::high_resolution_clock::now();
     // perform min-cut / max-flow
-    std::cout << "Running Min-Cut..." << std::endl;
-    lemon::Preflow< Graph, EdgeMap > preflow(_graph, _costs, _sourceNode, _sinkNode);
-    preflow.init();
-    preflow.runMinCut();
+    auto start = std::chrono::high_resolution_clock::now();
+
+    if(_loggingEnabled)
+        std::cout << "Running Min-Cut..." << std::endl;
+
+    // TODO: does reusing the preflow work?
+    delete _preflow;
+    _preflow = new lemon::Preflow< Graph, EdgeMap >(_graph, _costs, _sourceNode, _sinkNode);
+    _preflow->init();
+    _preflow->runMinCut();
 
     // extract nodes on the cut
-    std::cout << "Extracting results..." << std::endl;
+    if(_loggingEnabled)
+        std::cout << "Extracting results..." << std::endl;
 
     // create vigra image of the cut
     ImageArray cutImage(_imageArray.shape());
@@ -205,7 +253,7 @@ ImageGraph::ImageArray ImageGraphPrimal::runMinCut()
 
     for (Graph::NodeIt n(_graph); n != lemon::INVALID; ++n)
     {
-        if(preflow.minCut(n))
+        if(_preflow->minCut(n))
         {
             Coordinate c = _coordinates[n];
             cutImage(c.first, c.second) = 255;
@@ -213,12 +261,15 @@ ImageGraph::ImageArray ImageGraphPrimal::runMinCut()
         }
     }
 
-    std::cout << "#### Nodes on the cut: " << numNodesOnCut << " (" <<
-                 100.0f*(float)numNodesOnCut / (_imageArray.shape(0) * _imageArray.shape(1)) << "%)" << std::endl;
+    if(_loggingEnabled)
+    {
+        std::cout << "#### Nodes on the cut: " << numNodesOnCut << " (" <<
+                     100.0f*(float)numNodesOnCut / ((_maxX - _minX) * (_maxY - _minY)) << "%)" << std::endl;
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
-    std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
-    std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" << std::endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
+        std::cout << "== Elapsed time: " << 0.001f * elapsed_milliseconds << " secs" << std::endl;
+        std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" << std::endl;
+    }
     return cutImage;
 }

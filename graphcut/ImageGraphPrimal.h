@@ -17,6 +17,11 @@ public:
     virtual float sigma() const;
     virtual void setSigma(float sigma);
 
+    // methods for working as a subproblem to Dual
+    void setRange(unsigned int minX, unsigned int minY, unsigned int maxX, unsigned int maxY);
+    void setLoggingEnabled(bool enableLog);
+    bool isNodeInSourceSubset(unsigned int globalX, unsigned int globalY);
+
 private:
     inline void createEdgeToNodeWithIndex(unsigned int x0,
                                           unsigned int y0,
@@ -31,6 +36,16 @@ private:
 
     void addBoundaryEdgesAndPenalties(unsigned int width, unsigned int height, std::vector<Graph::Node> &nodes);
     void addRegionEdgesAndPenalties(unsigned int width, unsigned int height, std::vector<Graph::Node> &nodes);
+
+private:
+    unsigned int _minX;
+    unsigned int _minY;
+    unsigned int _maxX;
+    unsigned int _maxY;
+
+    lemon::Preflow< Graph, EdgeMap > *_preflow;
+    std::vector<Graph::Node> _nodes;
+    bool _loggingEnabled;
 };
 
 
