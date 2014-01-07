@@ -52,6 +52,11 @@ ImageGraph::ImageArray ImageGraphDual::runMinCut()
     // loop for K iterations
     for(auto iteration = 0; iteration < _numIterations; iteration++)
     {
+        if(iteration > 0)
+        {
+            buildGraph();
+        }
+
         // find solution of subproblems in parallel
         fM = QtConcurrent::run(&_subgraphM, &ImageGraphPrimal::runMinCut);
         fN = QtConcurrent::run(&_subgraphN, &ImageGraphPrimal::runMinCut);
@@ -90,7 +95,7 @@ ImageGraph::ImageArray ImageGraphDual::runMinCut()
             if(nodeInSourceSetForM != nodeInSourceSetForN)
             {
                 // stick to a stepsize of 1 for now
-                _lagrangians[i] += nodeInSourceSetForM - nodeInSourceSetForN;
+                _lagrangians[i] -= 1000 * (nodeInSourceSetForM - nodeInSourceSetForN);
             }
         }
 
