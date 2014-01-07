@@ -8,7 +8,8 @@ ImageGraphDual::ImageGraphDual(const std::string &imageFilename,
     _subgraphM(imageFilename, maskFilename),
     _subgraphN(imageFilename, maskFilename),
     _splitX(_imageArray.shape(0)/2),
-    _lagrangians(_imageArray.shape(1), 0)
+    _lagrangians(_imageArray.shape(1), 0),
+    _numIterations(1)
 {
     // set up both subgraphs with overlap
     _subgraphM.setLoggingEnabled(false);
@@ -39,39 +40,48 @@ void ImageGraphDual::buildGraph()
 ImageGraph::ImageArray ImageGraphDual::runMinCut()
 {
     auto start = std::chrono::high_resolution_clock::now();
+    auto sum = 0;
+    QFuture<ImageGraph::ImageArray> fM;
+    QFuture<ImageGraph::ImageArray> fN;
 
     // loop for K iterations
-
-    // find solution of subproblems in parallel
-    QFuture<ImageGraph::ImageArray> fM = QtConcurrent::run(&_subgraphM, &ImageGraphPrimal::runMinCut);
-    QFuture<ImageGraph::ImageArray> fN = QtConcurrent::run(&_subgraphN, &ImageGraphPrimal::runMinCut);
-
-    fM.waitForFinished();
-    fN.waitForFinished();
-
-    // check how much the results in the overlap differ
-    auto sum = 0;
-    for(auto i = 0; i < _lagrangians.size(); i++)
+    for(auto iteration = 0; iteration < _numIterations; iteration++)
     {
-        bool nodeInSourceSetForM = _subgraphM.isNodeInSourceSubset(_splitX, i);
-        bool nodeInSourceSetForN = _subgraphN.isNodeInSourceSubset(_splitX, i);
+        // find solution of subproblems in parallel
+        fM = QtConcurrent::run(&_subgraphM, &ImageGraphPrimal::runMinCut);
+        fN = QtConcurrent::run(&_subgraphN, &ImageGraphPrimal::runMinCut);
 
-        if(nodeInSourceSetForM != nodeInSourceSetForN)
+        fM.waitForFinished();
+        fN.waitForFinished();
+
+        // check how much the results in the overlap differ
+        sum = 0;
+        for(auto i = 0; i < _lagrangians.size(); i++)
         {
-            std::cout << "Pixel (" << _splitX << ", " << i << ") disagrees!" << std::endl;
-            sum++;
+            bool nodeInSourceSetForM = _subgraphM.isNodeInSourceSubset(_splitX, i);
+            bool nodeInSourceSetForN = _subgraphN.isNodeInSourceSubset(_splitX, i);
+
+            if(nodeInSourceSetForM != nodeInSourceSetForN)
+            {
+                std::cout << "Pixel (" << _splitX << ", " << i << ") disagrees!" << std::endl;
+                sum++;
+            }
         }
+
+        if(sum == 0)
+        {
+            //return solution if subproblems agree
+            return mergeSolutions(fM.result(), fN.result());
+        }
+
+        // update lagrangians
+        std::cout << "\nIteration " << iteration << ": There were " << sum << " disagreeing pixels\n" << std::endl;
+
+        // TODO: do something
     }
-
-    if(sum > 0)
-        std::cout << "\nThere were " << sum << " disagreeing pixels\n" << std::endl;
-
-    // return solution if subproblems agree
-    // return mergeSolutions(fM.result(), fN.result());
-
-    // update lagrangians
-
     // loop end
+
+    std::cout << "\nEnd: There were " << sum << " disagreeing pixels\n" << std::endl;
 
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count();
@@ -113,3 +123,13 @@ ImageGraph::ImageArray ImageGraphDual::mergeSolutions(
 
     return result;
 }
+unsigned int ImageGraphDual::numIterations() const
+{
+    return _numIterations;
+}
+
+void ImageGraphDual::setNumIterations(unsigned int numIterations)
+{
+    _numIterations = numIterations;
+}
+

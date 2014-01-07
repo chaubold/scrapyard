@@ -17,9 +17,12 @@ public:
     virtual void setLambda(float lambda);
     virtual void setSigma(float sigma);
 
+    unsigned int numIterations() const;
+    void setNumIterations(unsigned int numIterations);
+
 private:
     ImageGraph::ImageArray mergeSolutions(const ImageArray &solutionM,
-            const ImageArray &solutionN);
+                                          const ImageArray &solutionN);
 
 private:
     ImageGraphPrimal _subgraphM;
@@ -27,6 +30,7 @@ private:
 
     unsigned int _splitX;
     std::vector<float> _lagrangians;
+    unsigned int _numIterations;
 };
 
 #endif // IMAGEGRAPHDUAL_H
