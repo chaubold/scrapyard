@@ -112,9 +112,8 @@ ImageGraph::ImageArray ImageGraphDual::mergeSolutions(
 
     try
     {
-        // WHY DO YOU NO WORK??
         result.subarray(vigra::Shape2(_splitX, 0), _imageArray.shape()) =
-                solutionN.subarray(vigra::Shape2(0, 0), vigra::Shape2(_splitX, _imageArray.shape(1)));
+                solutionN.subarray(vigra::Shape2(_splitX, 0), _imageArray.shape());
     }
     catch(std::exception e)
     {
