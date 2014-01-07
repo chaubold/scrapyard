@@ -23,6 +23,8 @@ typedef lemon::ListGraph::EdgeMap<float> EdgeMap;
 typedef lemon::ListGraph::Edge Edge;
 #define ADD_EDGE(x,y) _graph.addEdge((x), (y))
 
+#define SPLIT_NOT_SET 0xFFFFFFFF
+
 class ImageGraph {
 public:
     typedef vigra::MultiArray<2, vigra::UInt8> ImageArray;

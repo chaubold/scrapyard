@@ -30,6 +30,7 @@ private:
 
     unsigned int _splitX;
     std::vector<float> _lagrangians;
+
     unsigned int _numIterations;
 };
 

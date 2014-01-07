@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
 
     //ImageGraphPrimal imageGraph(argv[1], argv[2]);
     ImageGraphDual imageGraph(argv[1], argv[2]);
-
+    imageGraph.setNumIterations(10);
 
     MainWindow w;
     w.show();

@@ -8,7 +8,9 @@ ImageGraphPrimal::ImageGraphPrimal(const std::string &imageFilename, const std::
     _maxX(_imageArray.shape(0)),
     _maxY(_imageArray.shape(1)),
     _preflow(NULL),
-    _loggingEnabled(true)
+    _loggingEnabled(true),
+    _splitX(SPLIT_NOT_SET),
+    _lagrangians(_imageArray.shape(1), 0)
 {
 }
 
@@ -36,31 +38,55 @@ void ImageGraphPrimal::createEdgeToNodeWithIndex(unsigned int x0,
     float boundaryPenalty = 100.0f * expf(-gradientMagnitude / (2.0f * powf(_sigma,2.0f))) / distance;
     _maxBoundaryPenalty = std::max(_maxBoundaryPenalty, boundaryPenalty);
 
+    // add lagrangian if at split border
+    if(_splitX != SPLIT_NOT_SET && x0 == _splitX)
+    {
+        boundaryPenalty *= 0.5f;
+    }
+
     _costs[e] = boundaryPenalty;
 }
 
 void ImageGraphPrimal::insertEdgeToSource(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
 {
     Edge e = ADD_EDGE(a, _sourceNode);
+    float cost = 0.0f;
 
     if(_pixelMask.pixelIsForeground(_minX + x, _minY + y))
-        _costs[e] = _maxBoundaryPenalty;
+        cost = _maxBoundaryPenalty;
     else if(_pixelMask.pixelIsBackground(_minX + x, _minY + y))
-        _costs[e] = 0;
+        cost = 0;
     else
-        _costs[e] = _lambda * _pixelMask.backgroundRegionPenalty(pixelValue);
+        cost = _lambda * _pixelMask.backgroundRegionPenalty(pixelValue);
+
+    // add lagrangian if at split border, and half cost
+    if(_splitX != SPLIT_NOT_SET && x == _splitX)
+    {
+        cost = 0.5f * cost + _lagrangians[y];
+    }
+
+    _costs[e] = cost;
 }
 
 void ImageGraphPrimal::insertEdgeToSink(unsigned int x, unsigned int y, Graph::Node& a, vigra::UInt8 pixelValue)
 {
     Edge e = ADD_EDGE(a, _sinkNode);
+    float cost = 0.0f;
 
     if(_pixelMask.pixelIsBackground(_minX + x, _minY + y))
-        _costs[e] = _maxBoundaryPenalty;
+        cost = _maxBoundaryPenalty;
     else if(_pixelMask.pixelIsForeground(_minX + x, _minY + y))
-        _costs[e] = 0;
+        cost = 0;
     else
-        _costs[e] = _lambda * _pixelMask.foregroundRegionPenalty(pixelValue);
+        cost = _lambda * _pixelMask.foregroundRegionPenalty(pixelValue);
+
+    // add lagrangian if at split border
+    if(_splitX != SPLIT_NOT_SET && x == _splitX)
+    {
+        cost = 0.5f * cost - _lagrangians[y];
+    }
+
+    _costs[e] = cost;
 }
 
 void ImageGraphPrimal::addBoundaryEdgesAndPenalties(
@@ -274,4 +300,14 @@ ImageGraph::ImageArray ImageGraphPrimal::runMinCut()
         std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n" << std::endl;
     }
     return cutImage;
+}
+
+void ImageGraphPrimal::setSplitX(unsigned int splitX)
+{
+    _splitX = splitX;
+}
+
+void ImageGraphPrimal::setLagrangians(const std::vector<float>& lagrangians)
+{
+    _lagrangians = lagrangians;
 }

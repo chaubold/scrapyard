@@ -21,6 +21,8 @@ public:
     void setRange(unsigned int minX, unsigned int minY, unsigned int maxX, unsigned int maxY);
     void setLoggingEnabled(bool enableLog);
     bool isNodeInSourceSubset(unsigned int globalX, unsigned int globalY);
+    void setSplitX(unsigned int splitX);
+    void setLagrangians(const std::vector<float>& lagrangians);
 
 private:
     inline void createEdgeToNodeWithIndex(unsigned int x0,
@@ -42,6 +44,9 @@ private:
     unsigned int _minY;
     unsigned int _maxX;
     unsigned int _maxY;
+
+    unsigned int _splitX;
+    std::vector<float> _lagrangians;
 
     lemon::Preflow< Graph, EdgeMap > *_preflow;
     std::vector<Graph::Node> _nodes;

@@ -14,9 +14,11 @@ ImageGraphDual::ImageGraphDual(const std::string &imageFilename,
     // set up both subgraphs with overlap
     _subgraphM.setLoggingEnabled(false);
     _subgraphM.setRange(0, 0, _splitX + 1, _imageArray.shape(1));
+    _subgraphM.setSplitX(_splitX);
 
     _subgraphN.setLoggingEnabled(false);
     _subgraphN.setRange(_splitX, 0, _imageArray.shape(0), _imageArray.shape(1));
+    _subgraphN.setSplitX(_splitX);
 }
 
 ImageGraphDual::~ImageGraphDual() {}
@@ -24,6 +26,9 @@ ImageGraphDual::~ImageGraphDual() {}
 void ImageGraphDual::buildGraph()
 {
     auto start = std::chrono::high_resolution_clock::now();
+
+    _subgraphM.setLagrangians(_lagrangians);
+    _subgraphN.setLagrangians(_lagrangians);
 
     // build subgraphs in parallel
     QFuture<void> fM = QtConcurrent::run(&_subgraphM, &ImageGraphPrimal::buildGraph);
@@ -77,7 +82,20 @@ ImageGraph::ImageArray ImageGraphDual::runMinCut()
         // update lagrangians
         std::cout << "\nIteration " << iteration << ": There were " << sum << " disagreeing pixels\n" << std::endl;
 
-        // TODO: do something
+        for(auto i = 0; i < _lagrangians.size(); i++)
+        {
+            int nodeInSourceSetForM = _subgraphM.isNodeInSourceSubset(_splitX, i)?1:0;
+            int nodeInSourceSetForN = _subgraphN.isNodeInSourceSubset(_splitX, i)?1:0;
+
+            if(nodeInSourceSetForM != nodeInSourceSetForN)
+            {
+                // stick to a stepsize of 1 for now
+                _lagrangians[i] += nodeInSourceSetForM - nodeInSourceSetForN;
+            }
+        }
+
+        std::cout << "\tLagrangian: min=" << *(std::min_element(_lagrangians.begin(), _lagrangians.end()))
+                     << " max=" << *(std::max_element(_lagrangians.begin(), _lagrangians.end())) << std::endl;
     }
     // loop end
 
