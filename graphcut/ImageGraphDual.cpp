@@ -28,7 +28,10 @@ void ImageGraphDual::buildGraph()
     auto start = std::chrono::high_resolution_clock::now();
 
     _subgraphM.setLagrangians(_lagrangians);
-    _subgraphN.setLagrangians(_lagrangians);
+
+    std::vector<float> negativeLagrangians(_lagrangians);
+    std::transform(_lagrangians.begin(), _lagrangians.end(), negativeLagrangians.begin(), [](float x){return -x;});
+    _subgraphN.setLagrangians(negativeLagrangians);
 
     // build subgraphs in parallel
     QFuture<void> fM = QtConcurrent::run(&_subgraphM, &ImageGraphPrimal::buildGraph);
@@ -80,8 +83,7 @@ ImageGraph::ImageArray ImageGraphDual::runMinCut()
 
         if(sum == 0)
         {
-            //return solution if subproblems agree
-            return mergeSolutions(fM.result(), fN.result());
+            break;
         }
 
         // update lagrangians
@@ -95,7 +97,7 @@ ImageGraph::ImageArray ImageGraphDual::runMinCut()
             if(nodeInSourceSetForM != nodeInSourceSetForN)
             {
                 // stick to a stepsize of 1 for now
-                _lagrangians[i] -= 1000 * (nodeInSourceSetForM - nodeInSourceSetForN);
+                _lagrangians[i] -= 100 * (nodeInSourceSetForM - nodeInSourceSetForN);
             }
         }
 
